@@ -1,0 +1,205 @@
+---
+title: "IDA HW 5 Group 66"
+author: 987144, 987154 And 986384
+date: "December 9, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+# Exercise 1
+
+## Joint Probability
+
+ **Table** | __Heads__ | __Tails__ |
+:--------------:|:------------------:|:----------------------------------------------|
+White |0.75 x 0.6 = 0.45|0.25 x 0.2 = 0.05 |
+Black  |0.75 x 0.3 = 0.225 |0.25 x 0.5 = 0.125  |   
+Red     | 0.75 x 0.1 = 0.075 |0.25 x 0.3 = 0.075|
+
+
+## Marginal probability
+
+$$ p(red ball) = 0.075 + 0.075 = 0.15 $$
+
+
+## Conditional Probability 
+$$  P(red | ¬black)=P(red | {red,white}) \\ Therefore \\ p(red | {red,white})= \frac{p(red \cap (red \cup white))}{p(red \cup white)} \\ We \ know \ A \cap(A \cup B) = A\ Therefore \\ = \frac{p(red)} {p(red \cup white)} \\ = \frac{0.15}{0.65} = 0.23 $$
+
+## Bayes Rule
+
+$$ p(Heads| Red\ Ball) = \frac{p(red ball | heads) * p(heads)}{p(red ball) \\ 
+= \frac{0.075*0.75}{0.15} \\ = 0.375}  $$
+
+# Exercise 2 
+
+$$Given \ information \\ p(elevated\ blood\ gluscose) = 0.05,\\ p(notification|\  elevated\ blood\ glucose) = 0.995,\\p(notification|\ No\ elevation) = 0.02, \\ p(No\ elevated\ blood\ gluscose) = 0.95\\ p(elevated\ blood\ glucose|\ notification) = ?\\ = \frac{p(notification|\ elevated\ blood\ glucose) *p(elevated\ blood\ gluscose) }{p(notification)} $$
+
+
+ **Table** | Calculation |
+:--------------:|:------------------:|
+p(notification given elevated) x p(elevation) |0.995 * 0.05 = 0.04975 |
+p(notification given non elevated) x p(no elevation)  | 0.02 * 0.95 = 0.19 |  
+Marginalized value for notification|0.06975|
+
+$$ Substituting\ the \ values \\ = \frac{0.04975}{0.06975\\ = 0.713}$$
+
+
+
+#Exercise 3
+
+Probability of a desk being chooses, i.e., p(Desk) = 1/3. 
+Probability of gold coin being chooses (probility of a drawers is opened with a gold coin), i.e, p(gold) = 3/6 = 1/2
+Find p(GG| Sight Gold)
+p(GG) = probability of desk have 2 gold coins in the 2 drawers
+p(sight gold) = probility of a drawers is opened with a gold coin.
+
+$$ p(GG|\ sight gold) = \frac{p(sight\ gold|\ GG)*p(GG)}{p(sight gold)} $$
+p(sight gold| GG) means what is the probability of a drawer having gold given that the desk has gold coins in both drawers. We can surely say that the probability is 1. 
+
+$$Therefore\ substituting\ the\ values\\ = \frac{1 * \frac{1}{3}}{\frac{1}{2}}\\ = \frac{2}{3} $$
+
+
+# Exercise 4
+## Let the critters roam
+
+```{r}
+n_critters <- 10000
+critters_positions <- rep(0,n_critters)
+n_steps <- 10000
+for (i in 1:length(critters_positions)) {
+  partial <- sum(runif(n = n_steps, min = -1, max = 1))
+  critters_positions[i] <- partial
+}
+```
+
+## Get summary statistics
+
+
+```{r}
+mean <- mean(critters_positions)
+sd <- sd(critters_positions)  
+mean 
+sd
+```
+
+## Plot the critter positions
+
+
+```{r}
+n_samples <-  rnorm(critters_positions, mean = mean, sd = sd)
+
+
+final <- tibble(source = rep('critters_positions'), x= critters_positions)
+final2  <-   tibble(source = rep('n_samples'), x= n_samples)
+
+final <-bind_rows(final, final2)
+
+final%>%
+  ggplot(aes(x, fill = source)) +
+  geom_density(alpha = 0.5)
+
+```
+
+## Repeat for fewer samples
+```{r}
+n_critters <- 50
+critters_positions <- rep(0,n_critters)
+
+n_steps <- 10000
+for (i in 1:length(critters_positions)) {
+  partial <- sum(runif(n = n_steps, min = -1, max = 1))
+  critters_positions[i] <- partial
+}
+mean <- mean(critters_positions)
+sd <- sd(critters_positions)
+
+n_samples <-  rnorm(10000, mean = mean, sd = sd)
+
+final <- tibble(source = rep('critters_positions'), x= critters_positions)
+
+final2  <-   tibble(source = rep('n_samples'), x= n_samples)
+final <-bind_rows(final, final2)
+final%>%
+  ggplot(aes(x, fill = source)) +
+  geom_density(alpha = 0.5)
+```
+
+## Interpret the critter walks
+
+* rnorm creates a random value from the normal distribution based on the mean and standard. Whereas, runif generates a random value from the uniform distribution between two intervals.
+* With rnorm, irrespective the sample size, it will still form a sample data which represents a normal distribution. 
+* However, sample size does matter in critter walk/critter position, as more than a normal distribution it forms a uniform distribution.This means as the sample and minimum and maximum values changes the distribution also changes.
+* Whereas,with rnorm even if the values change randomly and if you change the sample size the data will always represents a normal distribution.
+* As you increase the sample size, the uniform distribution forms a more like a normal distribution.
+
+
+# Homework 4 (Exercise 1)
+## Smaller Vector
+1) resampling the values of the vectors n times.
+2) n times being 100
+3) when you resample this values find the mean and the quantiles. 
+4) Mean is the average. 
+5) since we take a 95% interval. lower bound is 2.5%. Order the values in the ascending order. to find the position of the lower quantile we multiple the lower bound which is 0.025*(n+1). 
+6) We do the same for the upper quantile just with the value 0.975. So, 0.975*(n+1)
+7) We we calculate with the lower bound and we get 2.5 which we round of to 3. The 3rd position in the vector is nothing but 1.
+
+
+```{r}
+
+bootstrapped_CI <-  function(data_vector, n_resamples = 100) {
+  resampled_means <- map_dbl(1:n_resamples, function(i) {
+       mean(sample(x = data_vector, 
+                   size = length(data_vector), 
+                   replace = T)
+       )
+    }
+  )
+  tibble(
+    'lower' = quantile(resampled_means, 0.025),
+    'mean'  = mean(data_vector),
+    'upper' = quantile(resampled_means, 0.975)
+  ) 
+}
+
+d1 <- c(1,2,3)
+bootstrapped_CI(d1)
+
+```
+
+## Larger vector
+
+```{r}
+d1 = c(1,2,3)
+d2 = rep(d1,2)
+d3 = rep(d1,10)
+
+bootstrapped_CI <-  function(data_vector, n_resamples = 1e5) {
+  resampled_means <- map_dbl(1:n_resamples, function(i) {
+       mean(sample(x = data_vector, 
+                   size = length(data_vector), 
+                   replace = T)
+       )
+    }
+  )
+  tibble(
+    'lower' = quantile(resampled_means, 0.025),
+    'mean'  = mean(data_vector),
+    'upper' = quantile(resampled_means, 0.975)
+  ) 
+}
+
+bootstrapped_CI(d1)
+bootstrapped_CI(d2)
+bootstrapped_CI(d3)
+```
+
+
+## Effect of vector size
+
+1) Vector size is inversely related to confidence score. 
+2) Meaning, when the vector size is increasing, the confidence score between the quantile lower and mean and upper quantile and mean is decreasing. 
+3) This happens because it decreases the standard error

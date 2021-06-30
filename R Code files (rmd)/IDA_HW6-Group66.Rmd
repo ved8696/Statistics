@@ -1,0 +1,253 @@
+---
+title: "IDA_HW6-Group66"
+author: 987144, 987154 And 986384
+date: "December 16, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+# Homework 6: Models
+# Exerise 1: Common probability distributions in R
+
+# Binomial distribution
+##Plot the binomial distribution
+```{r echo=FALSE}
+library(ggplot2)
+library(dplyr)
+
+n <- 24
+binom <- tibble(
+  theta = rep(c(0.2,0.5,0.7,0.9), each = (n+1)), 
+  k = rep(seq(0, n), times = 4), 
+  value = dbinom(k, n, theta))
+binom
+
+ggplot(data = binom, aes(k, value)) + 
+  geom_bar(stat = "identity") +
+  facet_wrap(. ~ theta, nrow = 2, , labeller = "label_both") +
+  labs(
+    x = "Number of heads k",
+    y = "Likelihood of observation"
+  )
+
+```
+
+##Interpret the plot
+The top left graph shows the likelihood of getting k heads (sucesses) if we repeat the experiement N = 24 times given the likelihood for each individual success is 0.2.
+
+
+## Cumulative probability
+
+```{r}
+##pbinom(0:5,5,0.5)
+##dbinom(0:5,5,0.5)
+binom <- tibble(
+  theta = c(0.2,0.5,0.7,0.9),
+  pro_value = dbinom(7, 24, theta)
+)
+binom
+```
+
+
+
+# Normal distribution
+## Sample from the normal distribution and plot
+
+```{r}
+n <- 10000
+normt <- tibble(my = numeric(), stdd = numeric(), value = numeric())
+for (thismy in c(0,10)) {
+  for (thisstdd in c(1,5)) {
+    normt <- add_row(normt, 
+                     my = thismy, 
+                     stdd = thisstdd, 
+                     value = rnorm(n, thismy, thisstdd)
+                     )
+  }
+}
+
+ggplot(data = normt, aes(value)) + 
+  geom_histogram() +
+  facet_grid(my ~ stdd, scales = "free") +
+  labs(
+    x = "samples",
+    y = "count"
+  )
+```
+
+## Cumulative probability
+```{r}
+normt <- tibble(mu = numeric(), stdd = numeric(), value = numeric())
+
+for (thismy in c(0,10)) {
+  for (thisstdd in c(1,5)) {
+    normt <- add_row(normt, 
+          mu = thismy, 
+          stdd = thisstdd, 
+          value = round(1- pnorm(0.5, thismy, thisstdd), digits = 3)
+    )
+  }
+}
+ 
+normt
+```
+
+## Explain these results
+
+### Explaining intuitively and using the 68-95-99.7 rule
+1) At mu = 10 and sd = 1 the possibility of all the number to be above is 0.5 is 1. (mu +/- 3sd) puts 99.7 perfect of points above 0.5.  
+2) At mu = 10 and sd = 5 the possibility of all the number to be above is 0.5 is 0.971. 50 perfect of points above 10 + Plus (mu - 2sd) put 47.7 percent. Which add s up to 97.7. The answer is 0.971 as the mu- 2sd = 0. the values between 0 to 0.5 creates the difference
+3) At mu = 0 all the values below 0 which is 50 percent is removed. Now when the sd = 1. More values will fall between 0 to 0.5 compared to when sd = 5
+
+
+
+# Exercise 2: The T-Test Model
+## Load the avocado price data 
+
+
+```{r, warning=FALSE}
+avocado_data <- read_csv(url('https://raw.githubusercontent.com/michael-franke/intro-data-analysis/master/data_sets/avocado.csv')) %>% 
+  # remove currently irrelevant columns
+  select( -X1 , - contains("Bags"), - year, - region) %>% 
+  # rename variables of interest for convenience
+  rename(
+    total_volume_sold = `Total Volume`,
+    small  = '4046',
+    medium = '4225',
+    large  = '4770',
+  )
+
+
+```
+
+## Write the likelihood function in R 
+
+```{r}
+Likelihood <- function(y1, y2, mu, sigma, delta) {
+  map_dbl(delta, function(d) {
+    prod(dnorm(y1, mu, sigma)) + prod(dnorm(y2, mu + d, sigma))
+  }
+  )
+} 
+
+y1 <- avocado_data %>% filter(type %in% "organic")
+y2 <- avocado_data %>% filter(type %in% "conventional")
+
+Likelihood(y1$AveragePrice, y2$AveragePrice, 1.65, 0.3,  -0.5)
+
+llh_ttest <- function(y1, y2, mu, sigma, delta) {
+  map_dbl(delta, function(d) {
+    sum(dnorm(y1, mu, sigma, log = T)) + sum(dnorm(y2, mu + d, sigma, log = T))
+  }
+  )
+} 
+
+llh_ttest(y1$AveragePrice, y2$AveragePrice, 1.65,0.3 , -0.5)
+
+
+```
+
+## Plot aspects of the likelihood function
+
+
+```{r}
+
+p <- seq(-5, 4.9, by=0.1)
+
+LogLik <- numeric(length=100)
+for(i in 1:100){
+  LogLik[i] <- llh_ttest(y1$AveragePrice, y2$AveragePrice, sigma = 0.4, mu = 1.65, delta =p[i])
+}
+
+
+delta <- seq (-5,5, by = 0.1)
+tibble <- tibble(delta = delta, value = llh_ttest(y1$AveragePrice, y2$AveragePrice, sigma = 0.4, mu = 1.65, delta))
+tibble %>%
+ggplot(aes(x = delta, y = value)) + geom_line()
+```
+
+## Predictive function 
+
+```{r}
+randomsample <- function (type, mu, sigma, delta) {
+  data <- as.data.frame(table(type))
+  output <- tibble(type = character(), average_price = numeric())
+  for(i in 1:length(data)) {
+    if(data[i,1] == "organic")
+      output <- add_row(output, type = data[i,1], average_price = rnorm(data[i,2], mu, sigma))
+    else
+      output <- add_row(output, type = data[i,1], average_price = rnorm(data[i,2], mu + delta, sigma))
+  }
+  output
+}
+
+plotsample <- function (mu, sigma, delta) {
+  randomsample(avocado_data$type, mu, sigma, delta) %>% 
+    ggplot(aes(x = average_price, fill = type)) +
+    geom_histogram(binwidth = 0.02) +
+    facet_wrap(type ~ ., ncol = 1) + 
+    ylab('') +
+    xlab('Average price') +
+    theme(legend.position = "none")
+}
+
+plotsample(mu = 1.6, sigma = 0.2, delta = 1.6)
+```
+
+## Formulate a probabilistic belief
+
+From the graph above we know that the “d” is most likely -0.5. Plugging it into the parameter triple, and trying -0.3 and -0.7 as well, we see that the shape of the combined distribution for organic and conventional avocados is most similar to the sample data at “d”=-0.5 and with a narrow standard deviation of ~0.1. Hence, we conclude “d”~Normal(-0.5,0.1)
+
+
+$these\ are\ the\ closest\ parameters\ for\ the\ last\ question\ \delta \sim Normal(-0.5, 0.1)$ 
+
+# Exercise 3
+
+## Urn model
+
+There are 4 variables in the model of a single urn with an unkonwn population from 
+which we draw (we draw white unicorns) without returning them (we only return black unicorns).
+N is the population size of unicorns = latent (unknown) variable
+K is the number of marked unicorn in the population = 20
+n is the number of unicorns found during the 2nd visit = 24
+k is the number of marked unicorns during the 2nd visit = 7
+
+
+![3.a](/Users/BIREN/Desktop/Coxi/semester 2/Bayesian/exercises-week-9/photo_2020-06-23_03-05-42.jpg) 
+## Model Graph
+
+![Model](/Users/BIREN/Desktop/Coxi/Statistics/PNG/photo_2019-12-19_23-48-56.jpg)
+
+## Likelihood function
+
+```{r}
+K <- 20; n <- 24; k <- 7
+
+test_dhyper <- function (N, K, n, k) {
+  dhyper(k, K, N - K, n)
+}
+
+ggplot(data.frame(x = c(24, 300)), aes(x = x)) +
+  stat_function(fun = test_dhyper, geom = "line", n = (300-24+1), args = list(
+    K = K,
+    n = n,
+    k = k
+  )) +
+  scale_x_continuous(name = "Parameter N") +
+  scale_y_continuous(name = expression("Likelihood of N")) 
+
+
+
+```
+
+
+## Estimate the number of unicorns
+
+Based on the plot of the likelihood function, we can conclude that the total amount of unicorns is between 65 and 70 given that the graph peaks in that range. If we were to zoom in (by changing the c(24,300) to c(55,75); and the n = (300-24+1) to n = (75-55+1) in the code), we would see the peak to be at 68 unicorns exactly.
+
+
+
+

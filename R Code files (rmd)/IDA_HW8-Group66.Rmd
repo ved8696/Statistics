@@ -1,0 +1,255 @@
+---
+title: "IDA_HW8"
+author: 987144, 987154 And 986384
+date: "January 15, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+#Exercise 1: Adressing hypotheses about coin flips with hypothesis testing (45 points)
+```{r}
+plot_binomial <- function(theta, N, highlight = NULL) {
+  # put the data together
+  plotData <- tibble(x = 0:N, y = dbinom(0:N, N, theta))
+  # make a simple bar plot
+  out_plot <- ggplot(plotData, aes(x = x , y = y )) + 
+    geom_col(fill = "gray", width = 0.35) +
+    labs(
+      x = "test statistic k",
+      y =  str_c("Binomial(k, ", N, ", ", theta, ")")
+    )
+  # if given, highlight some bars in red
+  if (!is.null(highlight)) {
+    plotData2 = tibble(x = highlight, y = dbinom(highlight, N, theta))
+    out_plot <- out_plot + 
+      geom_col(
+        data = plotData2, 
+        aes(x = x, y = y), 
+        fill = "firebrick", 
+        width = 0.35
+      )  +
+      ggtitle(
+        str_c(
+          "Prob. selected values: ", 
+          sum(dbinom(highlight, N, theta)) %>% signif(5)
+          )
+        )
+  }
+  out_plot
+}
+```
+
+
+
+#Case 1: Manufacturer says: "$\theta$=0.8" (20 points)
+
+##Fix the null-hypothesis (2 points)
+
+Null Hypothesis: theta = 0.8
+
+
+Alternative Hypothesis:  theta != 0.8
+
+##Plot the sampling distribution (2 points)
+```{r}
+plot_binomial(theta = 0.8, N = 45, highlight = c(42))
+```
+
+##More extreme values of k
+
+```{r}
+plot_binomial(theta = 0.8, N = 45, highlight = which(dbinom(0:45, 45,p=0.8) <= dbinom(42, 45,p=0.8))-1)
+```
+
+##One- or two-sided test?
+This is a two sided test as the alternative hypotheses is not directed. Alternative hypothesis depends on both (left and right) extreme values.
+ 
+##p-value (2 points)
+
+p-value = 0.02389
+
+##Compare to built-in function
+
+```{r}
+binom.test(
+  x = 42,     # observed successes
+  n = 45,    # total nr. observations
+  p = 0.8   # null hypothesis
+
+)
+
+```
+
+##Interpret and report your results (6 points)
+
+We conducted a binomial test assuming that the coin is fair $\theta = 0.8$ and observed a significant test result (N= 45, p ??? 0.02389). This means that we have found overwhelming evidence to reject the null hypothesis $\theta = 0.8$.  
+
+
+
+
+#Case 2: Manufacturer says: "$\theta$<=0.3" (20 points)
+
+##Fix the null-hypothesis (2 points)
+
+Null hypotesis: $\theta$<=0.3
+
+
+Alternative hypothesis:   $\theta$>0.3
+
+## Plot the sampling distribution (2 points)
+```{r}
+plot_binomial(theta = 0.3, N = 32, highlight = c(15))
+```
+
+
+
+
+
+## More extreme values of k (4 points)
+```{r}
+plot_binomial(theta = 0.3, N = 32, highlight = c(15:32))
+```
+##One- or two-sided test? (2 points)
+
+Its a one sided test as we are interested in the $\theta$???0.3  which means that the alternative hypothesis is directed.
+
+##p-value (2 points)
+
+p-value = 0.03272
+
+##Compare to built-in function (2 points) 
+
+```{r}
+binom.test(
+  x = 15,     # observed successes
+  n = 32,     # total nr. observations
+  p = 0.3,    # null hypothesis
+  alternative = 'greater'
+)
+
+```
+##Interpret and report your results (6 points)
+
+
+We conducted a binomial test assuming that the coin is fair $\theta <= 0.3$ and observed a significant test result (N= 32, p = 0.03272). As the p value is lower the $\alpha$ so we can reject the null hypothesis. 
+
+
+
+
+
+
+
+
+
+#Case 3: Manufacturer says: "$\theta$=>0.6" (20 points)
+
+##Fix the null-hypothesis (2 points)
+
+Null hypotesis: $\theta$=>0.6 
+
+
+Alternative hypothesis:  $\theta$<0.6
+
+##Plot the sampling distribution (2 points)
+```{r}
+plot_binomial(theta = 0.6, N = 100, highlight = c(53))
+```
+##More extreme values of k (4 points)
+```{r}
+plot_binomial(theta = 0.6, N = 100, highlight = c(1:53))
+```
+##One- or two-sided test? (2 points)
+
+Its a one sided test as we are interested in the $\theta$=>0.6  which means that alternative hypotesis is a directed hypothesis..
+
+##p-value (2 points)
+
+p-value = 0.09298
+
+##Compare to built-in function (2 points) 
+
+```{r}
+binom.test(
+  x = 53,     # observed successes
+  n = 100,     # total nr. observations
+  p = 0.6,    # null hypothesis
+  alternative = 'less'
+)
+
+```
+##Interpret and report your results (6 points)
+
+
+We conducted a binomial test assuming that the coin is fair $\theta => 0.6$ and observed (N= 100, p = 0.09298). The p-value is greater than the $\alpha$ so we will not be able to reject the null hypothesis. 
+
+#Exercise 2: Pearson's $\chi^2$test of goodness of fit
+
+##Plot data and prediction
+```{r}
+n_obs <- tibble(
+  mega_winner = 1, 
+  winner = 2,
+  free_ride = 10,
+  consolation = 18,
+  blank = 19
+)
+
+expected <- tibble(
+  mega_winner = 5,
+  winner = 15,
+  free_ride = 15,
+  consolation = 35,
+  blank = 30
+) * sum(n_obs) / 100
+
+
+expected <- expected %>%
+pivot_longer(cols = -10 ,names_to = "type", values_to = "scores")
+n_obs <- n_obs %>%
+pivot_longer(cols = -10 ,names_to = "type", values_to = "scores")
+expected <- add_column(expected, condition = "expected")
+n_obs <- add_column(n_obs, condition = "n_obs")
+final <- full_join(n_obs, expected)
+
+ggplot(final, aes(fill =condition, x = type, y= scores)) + geom_bar(position="dodge", stat="identity")
+
+final
+
+```
+
+
+
+##Test the vendor's claim 
+
+```{r}
+chisq.test(n_obs$scores, expected$scores)
+
+```
+
+Observed values do not deviate significantly from the expected values claimed by the vendor.The p-value is greater than the significant value $\alpha$ = 0.05 
+($\chi ^2 test,\ with\ \chi^2 = 15, \ df = 12, \ p-value = 0.2414$ )
+
+
+#Exercise 3: Some claims about frequentist testing (15 points)
+
+1. A p-value of 0.00615 should be interpreted as implying that the probability that the null-hypothesis is true is below 1%.
+  Its True. But we never do say that the null hypothesis is true or accepted. So the sentence is "that the probability that the null-hypothesis is not rejected is below 1%"
+
+
+2. If we obtain a 95% confidence interval of [0.2;0.4] for a binomial test, then we know that a two-sided binomial test for the null hypothesis $\theta$=0.1 will be statistically significant at the significance level $\alpha$=0.05. 
+    Its True. 
+
+3. If we obtain a significant test result for a two-sided binomial test for the null hypothesis $\theta$=0.1, we know that the corresponding 95% CI for the observed data will include the value 0.1.
+  Its False. As we reject the null hypothesis, the value 0.1 will be not exist within the confidence interval. 
+    
+4. The Central Limit Theorem implies that a binomial distribution for large enough N is closely approximated by a normal distribution, no matter what $\theta$ we are assuming.
+  Its true
+  
+5. If we obtain a significant test result at significance level $\alpha$=0.05, then this means that when we repeat the exact same experiment we will find a significant result in at least 95% of the cases.  
+  Its True. 
+
+
+

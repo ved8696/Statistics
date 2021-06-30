@@ -1,0 +1,156 @@
+---
+title: "IDA HW 4"
+author: 987144, 987154 And 986384
+date: "December 2, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(warning = F, message = F)
+library(tidyverse)
+library(dplyr)
+```
+
+
+# Exercise 2:  Correlation is invariant under positive linear transformation
+
+
+## A)
+$$ r_{xy}=\frac{\frac{1}{n}\sum_{i=1}^n (x_i- \mu_x) (y_i- \mu_y)}{sd_x . sd_y} \\ = \frac {cov(x , y)  } {sd_x . sd_y} \\ = \frac{1}{n}\sum_{i=1}^n \frac{(x_i - \mu_x) (y_i - \mu_y ) }{sd_x . sd_y} \\ = \frac{1}{n}\sum_{i=1}^n [\frac{x_i-\mu_x}{sd_x} . \frac{y_i-\mu_y}{sd_y}] \\ = \frac {1}{n} \sum_{i=1}^n [z_{x_i}  z_{y_i}] $$
+
+## B)
+
+$$We\ Know\\ x'_i = ax'_i + b \\ Then\\ \mu_{x'}=\frac{1}{n}\sum_{i=1}^n x'_i \\ = \frac{1}{n}\sum_{i=1}^n (ax_i + b) \\= \frac{1}{n}[\sum_{i=1}^n ax_i + \sum_{i=1}^n b] \\= \frac{1}{n} [a \sum_{i=1}^n x_i + n.b]\\ = a \frac{1}{n}\sum_{i=1}^n x_i + b\\ = a\mu_x + b  $$
+
+## C) 
+
+
+$$  We\ Know\\ x'_i = ax'_i + b \\ \mu_{x'} = a\mu_x + b \\ Then\\  sd_{x'} = \sqrt{\frac{1}{n}\sum_{i=1}^n (x'_i - \mu_{x'})^2}  \\ = \sqrt{\frac{1}{n}\sum_{i=1}^n (ax_i + b  - (a\mu_x + b))^2} \\ = \sqrt{\frac{1}{n}\sum_{i=1}^n (ax_i -a\mu_x)^2} \\ = \sqrt{\frac{1}{n}\sum_{i=1}^n a^2(x_i -\mu_x)^2}\\ = \sqrt{a^2} \sqrt{\frac{1}{n}\sum_{i=1}^n (x_i -\mu_x)^2} \\ = a\ sd_x $$ 
+
+## D)
+
+$$ We\ Know\\ x'_i = ax'_i + b \\ \mu_{x'} = a\mu_x + b \\ asd_x = sd_{x'} \\ Then \\ r_{r'y} = \frac{1}{n}\sum_{i=1}^n z_{x'_i} z_{y_i} \\ = \frac{1}{n}\sum_{i=1}^n [\frac{x'_i - \mu_{x'}}{sd_{x'}} . z_{y_i}] \\ = \frac{1}{n}\sum_{i=1}^n [\frac{ax_i +b - (a\mu_x + b)}{asd_{x}} . z_{y_i}] \\ = \frac{1}{n}\sum_{i=1}^n [\frac{x_i - \mu_{x}}{sd_{x}} . z_{y_i}] \\ = \frac{1}{n}\sum_{i=1}^n [z_{x_i} . z_{y_i}] \\  = r_{xy}$$
+
+
+
+
+# Exercise 3: Plotting bars for the WHO data
+## Read the data into R
+
+
+
+```{r}
+url_prefix <- "https://raw.githubusercontent.com/michael-franke/intro-data-analysis/master/data_sets/"
+WHO_data_url  <- str_c(url_prefix, "WHO.csv")
+
+d <- read.csv(WHO_data_url, header = T) 
+```
+
+
+## Make a bar plot with geom_bar 
+
+```{r}
+d %>%
+  ggplot(aes(x=Region)) +
+  geom_bar(stat = "count") +
+  ylab("Number of Countries in data set")
+```
+
+
+
+## Make a bar plot with geom_col
+
+```{r}
+Regions <-  fct_count(d$Region)
+
+
+Region <- Regions %>%
+  ggplot(aes(x= fct_reorder(f, n, .desc = T), y = n)) +
+  geom_col() +
+  xlab("Regions") + ylab("Number of Countries in data set") + ggtitle("Countries Per Region")
+Region
+```
+
+## Plotting population per region
+
+
+```{r}
+Population <- d %>%
+  ggplot(aes(x = Region, y = Population)) + 
+  geom_col() + ggtitle("Population Per Region")
+Population
+```
+
+
+# Combining plots
+
+```{r}
+library(cowplot)
+
+plot_grid(Region, Population, ncol = 1)
+
+```
+
+
+# Excercise 4
+## Create summary statistics (4 points)
+
+```{r}
+d %>%
+  group_by(Region) %>%
+  summarise(
+    Min = min(ChildMortality), 
+    "0.25_quant" = quantile(ChildMortality, 0.25),
+        "0.5_quant" = quantile(ChildMortality, 0.5),
+    mean = mean(ChildMortality),
+        "0.75_quant" = quantile(ChildMortality, 0.75),
+    Max = max(ChildMortality)
+  )
+```
+
+## Violin plots for group comparisons 
+```{r}
+MeanMortality <- d %>%
+  group_by(Region) %>%
+  mutate(mean_cm = mean(ChildMortality)) %>%
+  ungroup()
+
+MeanMortality %>%
+  group_by(Region) %>%
+  ggplot(aes(x= fct_reorder(Region, mean_cm, .desc = F), y = ChildMortality)) +
+  geom_violin()
+
+```
+
+## Adding means and confidence intervals to the violin plot (6 points)
+
+
+```{r}
+bootstrapped_CI <-  function(data_vector, n_resamples = 1000) {
+  resampled_means <- map_dbl(1:n_resamples, function(i) {
+       mean(sample(x = data_vector, 
+                   size = length(data_vector), 
+                   replace = T)
+       )
+    }
+  )
+  tibble(
+    'lower' = quantile(resampled_means, 0.025),
+    'mean'  = mean(data_vector),
+    'upper' = quantile(resampled_means, 0.975)
+  ) 
+}
+d %>% 
+  group_by(Region) %>%
+  nest(.key = "ci") %>%
+  summarise( CIs = map(ci, function(d) bootstrapped_CI(d$ChildMortality))
+  ) %>% unnest(CIs) -> ci_mean_cm
+ci_mean_cm
+
+MeanMortality %>%
+  group_by(Region) %>%
+  ggplot(aes(x= fct_reorder(Region, mean_cm, .desc = F), y = ChildMortality, fill = Region)) +
+  geom_violin() +
+  theme(legend.position = "none") +
+  geom_pointrange(data = ci_mean_cm, mapping = aes(x = Region, y = mean, ymin = lower, ymax = upper))
+```

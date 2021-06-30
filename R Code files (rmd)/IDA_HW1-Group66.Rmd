@@ -1,0 +1,190 @@
+---
+title: "IDA- Homework 1"
+author: "986384 and 987144"
+date: "November 14, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Task 1
+
+## The data set I: Creating a table in RMarkdown
+
+### Overview of variables in the data set
+
+
+**Variable**  | __Variable Type__ | __Values__
+:--------------:|:------------------:|:----------------------------------------------
+brain regions | Nominal| Rostral middle frontal, Precentral, Lateral Occipital, Transverse Temporal, Temporal Pole |
+surface area  | Metric |5941.8, 4718.8, 4672.9, 799.48, 443.3   |   
+thickness     | Metric |2.59, 2.74, 2.3, 2.52, 3.66|
+hemisphere    | Binary  |L,L,L,R,R|
+
+
+# Task 2
+## Loading relevant packages
+
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+
+```
+
+# Task 3
+## The data set II: Creating a tibble in R
+
+```{r}
+brain_data<- tibble(
+  brain_regions = factor(c("Rostral middle frontal", "Precentral", "Lateral Occipital", "Transverse temporal", "Temporal pole")),
+       surface_area = c(5941.8, 4718.8, 4672.9, 799.48, 443.3),
+       thickness = c(2.59, 2.74, 2.3, 2.52, 3.66),
+       hemisphere = c("L","L", 'L', 'R', 'R'))
+brain_data
+
+```
+
+# Task 4
+
+```{r}
+library(purrr)
+library(forcats)
+brain_data$brain_regions <- fct_recode(brain_data$brain_regions, 
+           "Banks Superior Temporal" = "Transverse temporal")
+brain_data
+
+```
+
+# Task 5
+
+```{r}
+brain_data[2,3]
+```
+
+# Task 6
+
+## The data set III: Creating a tibble in R
+
+```{r}
+brain_data2 <- brain_data
+surface_area <- brain_data$surface_area
+thickness <- brain_data$thickness
+brain_data2 <- add_column(brain_data2, volume = surface_area*thickness)
+brain_data2
+```
+
+
+# Task 7
+ Why would it not work to use the same code to create a data frame instead of a tibble?
+ Answer: The reason why using the same code would not work is that the operations done in above tasks are column based. Data Frame is a row based structure and does not allow such as changing the name of variable. Also, a data frame is not flexible to mathematical function when you try to apply it to the whole column. It might work with individual value in a certain row but not the complete column. 
+ 
+ 
+# Miscellaneous: R basics
+# Task 8
+
+```{r}
+regions_v1 <- brain_data2$brain_regions
+regions_v1
+
+
+```
+
+
+# Task 9
+
+```{r}
+typeof(regions_v1)
+
+```
+
+
+# Task 10
+
+```{r}
+length(regions_v1)
+
+```
+
+
+# Task 11
+
+Check again
+```{r}
+
+brain_data2$hemisphere %>% unique %>% length
+
+```
+
+
+# Task 12
+Describe in no more than 10 words what the goal of this code is
+Answer: Returns brain regions of the right hemisphere from brain_data2
+```{r}
+brain_data2[str_detect(brain_data2$hemisphere, "R"),"brain_regions"]
+
+```
+
+
+# Task 13
+
+```{r}
+x <- brain_data2$surface_area
+y <- brain_data2$thickness
+
+x
+y
+
+volume_calc <- function(x,y) {
+  return(x*y)
+}
+
+volume_compare <- list(volume1 = brain_data2$volume, volume2 = volume_calc(x,y))
+volume_compare
+
+```
+
+
+# Task 14
+
+```{r}
+
+volume_true <- as.numeric(c("17439","14351","12150","2386","2280.1"))
+volume_true
+volume_Calculated <- as.numeric(volume_compare$volume1)
+volume_diff <- function(x,y) {
+  return(x - y)
+}
+
+
+```
+
+
+# Task 15
+
+```{r}
+brain_data3 <- tibble(
+  regions = regions_v1,
+  calculated_volume = volume_diff(volume_true, volume_Calculated)
+)
+
+brain_data3
+```
+
+
+
+# Task 16
+Answer: This formula returns the value from column 1, which has the minimum calculated brain volume. 
+Which brain region has the minimum calculated brain volume?
+```{r}
+brain_data3[which.min(brain_data3$calculated_volume),1]
+
+```
+
+# Task 17 
+
+```{r}
+family <- c("Gomez", "Morticia", "Pugsley", "Wednesday", "Uncle Fester", "Grandma")
+map_chr(family, (function (x) {if (x != "Grandma" & x != "Uncle Fester") {str_c(x," Adams")} else {x}}))
+
+```

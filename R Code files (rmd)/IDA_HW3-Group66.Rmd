@@ -1,0 +1,218 @@
+---
+title: "IDA HW 3"
+author: 987144, 987154 And 986384
+date: "November 26, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(warning = F, message = F)
+library(tidyverse)
+library(dplyr)
+```
+
+#Exercise 1
+## Reading & inspecting the data
+
+```{r}
+
+url_prefix <- "https://raw.githubusercontent.com/michael-franke/intro-data-analysis/master/data_sets/"
+url_us  <- str_c(url_prefix, "YouTube-US.csv")
+url_de  <- str_c(url_prefix, "YouTube-DE.csv")
+url_cat <- str_c(url_prefix, "YouTube-categories.csv")
+
+
+YouTube_data_US <- read.delim(url_us, header = T,sep = ",") 
+YouTube_data_DE <- read.delim(url_de, sep = ",")
+YouTube_data_categories <- read.delim(url_cat, sep = ";")
+
+colnames(YouTube_data_DE)
+```
+
+
+## Pruning the data
+
+
+```{r}
+YouTube_data_US <- YouTube_data_US %>% select("title", "channel_title", "category_id", "tags", "views", "likes", "dislikes", "comment_count")
+
+YouTube_data_DE <- YouTube_data_DE %>% select("title", "channel_title", "category_id", "tags", "views", "likes", "dislikes", "comment_count")
+
+```
+
+
+## Adding a column country
+
+```{r}
+
+YouTube_data_US <- YouTube_data_US %>% mutate(country = "US")
+YouTube_data_DE <- YouTube_data_DE %>% mutate(country = "GER")
+
+```
+
+
+
+## Binding data sets
+
+```{r}
+
+YouTube_data_combined <-union(YouTube_data_US, YouTube_data_DE)
+nrow(YouTube_data_combined)
+
+```
+
+
+
+## Joining Data Sets
+
+```{r}
+
+YouTube_data_full <- full_join(YouTube_data_combined, YouTube_data_categories, by = "category_id")
+
+colnames(YouTube_data_full)
+
+```
+
+
+
+# Exercise 2
+
+## Load the pre-processed YouTube data
+```{r}
+url_prefix <- "https://raw.githubusercontent.com/michael-franke/intro-data-analysis/master/data_sets/"
+url_full  <- str_c(url_prefix, "YouTube-full.csv")
+
+YouTube_data_full <- read.delim(url_full, sep = ",")
+colnames(YouTube_data_full)
+```
+
+ 
+## Sorting by mean likes
+
+```{r}
+mean1 <- YouTube_data_full %>%
+  group_by(category_name, country) %>%
+  summarise(
+    mean_likes = mean(likes)
+  ) 
+
+
+mean2 <- YouTube_data_full %>%
+  group_by(category_name, country) %>%
+  summarise(
+    mean_dislikes = mean(dislikes)
+  )
+  
+mean_final <- full_join(mean1, mean2)  
+mean_final %>% 
+  arrange(desc(mean_likes))
+```
+
+
+
+## Most viewed music video in Germany (4 points)
+
+```{r}
+Videos <- YouTube_data_full %>% 
+  filter(category_name %in% "Music") %>%
+  filter(country %in% "GER") %>%
+  select(country, title, category_name, likes, views)
+View(Videos)
+
+
+```
+
+
+
+## Counts of categories
+
+```{r}
+count <- YouTube_data_full %>%
+  count(category_name)%>%
+  arrange(n)
+
+count$n <- as.numeric(count$n)
+
+count %>%
+  filter(n == median(count$n))
+
+```
+
+
+
+## Compare means and median
+
+```{r}
+YouTube_data_full %>%
+  select(country, likes, dislikes, category_name) %>%
+  group_by(country, category_name) %>%
+  filter(category_name %in% c("Music", "Science & Technology")) %>%
+  summarise(
+    mean_likes = mean(likes),
+    median_likes = median(likes)
+  )
+
+```
+
+The reason for the significantly higher mean in the German music category may be that there are a few titles with a extremely high likes count which skewes the mean vs. the median to be higher.
+
+
+
+# Exercise 3
+
+## Code 1
+```{r}
+mode_of_factor <- function(vector){
+  tx <- tibble(vector) %>% 
+    dplyr::count(vector) %>%
+      filter(n == max(n))
+  return(tx$vector)
+}
+mode_of_factor(YouTube_data_full$category_name)
+
+```
+
+## Code 2 (Alternative)
+```{r}
+
+mode_of_factor1 <- function (vector) {
+  vector %>% 
+    enframe() %>%
+    group_by(value) %>%
+    summarise(
+      count = n()
+    ) %>%
+    filter(count == max(count)) %>% pull(value)
+  }
+
+mode_of_factor1(YouTube_data_full$category_name)
+
+
+
+```
+
+# Exercise 4
+```{r}
+original <- c(1,2,3,4,5,2,2,6,12,7,4,5,7,3,2,1,5,6,8,5,10)
+mean(original)
+median(original)
+added <- append(original, 32)
+mean(added)
+median(added)
+  
+```
+
+# Exercise 5
+
+$$\mu_\dot{x}=\frac{1}{n}\sum_{i=1}^n x_i$$
+
+
+$$ Var(\vec{x})=\frac{1}{n}\sum_{i=1}^n(x_i-\mu_n)^2 $$
+
+
+
+
+
+
+
+

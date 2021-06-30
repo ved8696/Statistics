@@ -1,0 +1,150 @@
+---
+title: "IDA_HW9_Group66"
+author: 987144, 987154 And 986384
+date: "January 22, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+```
+
+
+
+#Exercise 1: Comparing two groups with a t-test
+
+```{r}
+group_1 <- c(
+  104, 105, 100, 91, 105, 118, 164, 168, 111, 107, 136, 149, 104, 114, 107, 95, 
+  83, 114, 171, 176, 117, 107, 108, 107, 119, 126, 105, 119, 107, 131
+)
+group_2 <- c(
+  133, 115, 84, 79, 127, 103, 109, 128, 127, 107, 94, 95, 90, 118, 124, 108, 
+  87, 111, 96, 89, 106, 121, 99, 86, 115, 136, 114
+)
+
+t.test(group_1,group_2, alternative = "two.sided", paired = FALSE)
+```
+
+
+We conducted a T-test with group_1 and group_2 data and observed (t = 2.1325, p = 0.03778). The p-value is lesser than the significance level (0.05) so we can reject the claim that there is no difference between the two group. 
+
+#Exercise 2: Pearson's $\chi^2$test of independence
+
+```{r}
+observed_counts <- matrix(
+  c(
+    31,56,23,
+    104,67,12,
+    24,34,42,
+    19,16,8
+  ),
+  nrow = 4,
+  byrow = T,
+  dimnames = list(
+    program = c("CogSci", "Psych", "Computer Science", "Philosophy"),
+    preference = c("frequentist", "Bayes", "bootstrap")
+    
+  )
+)
+
+chisq.test(observed_counts)
+```
+
+We conducted a Pearson's $\chi^2$test observed (X-squared = 69.473, p-value = 5.243e-13). The p-value is lesser than the significance level (0.05) so we can reject the claim that there is no difference between the observed values of the 3 preferences among statistical tests.
+
+
+#Exercise 3: Understanding a mystery function (8 points)
+
+```{r}
+mysterious_function <- function(vec) {
+  map_lgl(
+    1:(length(vec)-1),
+    function(i) {vec[i] == vec[i+1]}
+  ) %>% sum()
+}
+
+
+
+```
+
+
+This function takes as input a vector and takes each value and check whether it is equal to the next value and adds up the number of times the consecutive items where same.
+
+
+#Exercise 4: Simulating a p-value for a custom-made test statistic
+
+
+##Binomial test of fairness
+
+```{r}
+binom.test(15,30,p = 0.5, alternative = "two.sided")
+```
+
+We conducted a binomial test assuming that the coin is fair $\theta = 0.5$ and observed (N= 30, p = 1). The p-value is greater than the $\alpha$ so we will not be able to reject the null hypothesis claim that$\theta = 0.5$
+
+
+##Questioning independence based on swaps
+
+```{r}
+obs_1 <- rep(c(1,0), each = 15)  
+obs_2 <- rep(c(1,0), times = 15)
+obs_3 <- c(1,1,1,1,0,0,0,0,0,0,1,1,1,1,0,0,0,1,1,0,0,1,1,1,1,0,0,0,0,1)
+
+
+number_of_swaps <- function(vec) {
+  map_lgl(
+    1:(length(vec)-1),
+    function(i) {vec[i] != vec[i+1]}
+  ) %>% sum()
+}
+
+
+number_of_swaps(obs_1)
+number_of_swaps(obs_2)
+number_of_swaps(obs_3)
+```
+
+##Approximating a sampling distribution via sampling
+
+```{r}
+n_samples <- 100
+sample_nr_swaps <- function(n_samples) {sample(c(1,0), size = 30, replace = T)}
+
+swaps <- replicate(100000 ,number_of_swaps(sample_nr_swaps(n_samples)))
+
+
+
+
+```
+
+
+##Plot the sampling distribution
+
+
+```{r}
+
+count <- tibble(swaps)
+count <- count %>% count(swaps)
+count
+
+ggplot(count, aes(x = swaps, y = n)) + geom_col()
+```
+
+
+##Compute a p-value with MC-sampling
+
+```{r}
+n_samples <- 100000
+MC_sampling_p_value <- function(n_samples) {
+  number_of_swaps(sample_nr_swaps(n_samples)* (1-number_of_swaps(obs_3)))/n_samples
+}
+MC_sampling_p_value(n_samples)
+
+
+```
+
+
+

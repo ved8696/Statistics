@@ -1,0 +1,253 @@
+  ---
+title: "IDA_HW7-Group66"
+author: 987144, 987154 And 986384
+date: "January 7, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(greta)
+library(HDInterval)
+library(ggmcmc)
+```
+
+
+#Exercise 1: MLE and MAP (10 points)
+
+The Bayesian Likelihood is given by the following formula(which can also be derieved to):
+$$\theta MAP \\= arg max P(X|\theta)P(\theta) \\ = arg max \log[P(X|\theta)P(\theta)] \\ = arg max \log[P(X|\theta)]\ + log [P(\theta)] \\ = argmax\ log \prod_i P(x_i|\theta) + log(P(\theta)) \\ =argmax \sum_i  \log(P(x_i|\theta)) + log (P(\theta))$$
+When we compare MAP and MLE equations we can see that the only difference is the prior.This means that the MAP is weigthed by the prior. As given that the prior is an uniform distribution, all the weights are equal to all the possible values of the prior. So in that case: 
+$$=argmax \sum_i  \log(P(x_i|\theta)) + log (P(\theta) \\ can \ also \ be \ written \ as \\ =argmax \sum_i  \log(P(x_i|\theta)) \\ which \ is \ nothing \ but \\ =\theta \ MLE$$
+
+#Exercise 2: Linear regression with greta (40 points)
+
+##Load and preprocess the data (2 points)
+```{r}
+avocado_data <- read_csv(url('https://raw.githubusercontent.com/michael-franke/intro-data-analysis/master/data_sets/avocado.csv')) %>% 
+  # remove currently irrelevant columns
+  select( -X1 , - contains("Bags"), - year, - region) %>% 
+  # rename variables of interest for convenience
+  rename(
+    total_volume_sold = `Total Volume`,
+    average_price = `AveragePrice`,
+    small  = '4046',
+    medium = '4225',
+    large  = '4770'
+  )
+```
+##Plot the data (4 points)
+
+```{r}
+avocado_data %>%
+  ggplot(aes(x = log(total_volume_sold), y = average_price)) +
+  geom_point() + geom_smooth(method = 'lm')
+```
+##Find the MLE
+```{r}
+
+nll = function(y, x, beta_0, beta_1, sd) {
+  # negative sigma is logically impossible
+  if (sd <= 0) {return( Inf )}
+  # predicted values
+  yPred = beta_0 + x * beta_1
+  # negative log-likelihood of each data point 
+  nll = -dnorm(y, mean=yPred, sd=sd, log = T)
+  # sum over all observations
+  sum(nll)
+}
+fit_lh = optim(
+  # initial parameter values
+  par = c(1.5, 0, 0.5),
+  # function to optimize
+  fn = function(par) {
+    with(avocado_data, 
+         nll(average_price, log(total_volume_sold),
+             par[1], par[2], par[3])
+    )
+  }
+)
+fit_lh$par
+
+MLE <- tibble(parameter = c("intercept", "slope","standard deviation"), value = fit_lh$par)
+MLE
+```
+##Plot a second regression line (6 points)
+
+```{r}
+avocado_data %>%
+  ggplot(aes(x = log(total_volume_sold), y = average_price)) +
+  geom_point() + geom_smooth(method = 'lm') + geom_abline(aes(x = log(total_volume_sold), y = average_price),slope = fit_lh$par[2]
+, intercept = fit_lh$par[1], colour = 'red')
+```
+
+
+##Implement the model with greta
+```{r, eval=FALSE}
+# select data to use
+price     <- as_data(avocado_data$average_price)
+log_sold  <- as_data(log(avocado_data$total_volume_sold))
+# latent variables and priors
+intercept <- student(df= 1, mu = 0, sigma = 10)
+slope     <- student(df= 1, mu = 0, sigma = 10)
+sigma     <- normal(0 , 5, truncation = c(0, Inf))
+# derived latent variable (linear model)
+mean <- intercept + slope * price
+# likelihood 
+distribution(log_sold) <- normal(mean, sigma)
+# finalize model, register which parameters to monitor
+m <- model(intercept, slope, sigma)
+```
+##Obtain samples
+
+```{r, eval=FALSE}
+draws <- mcmc(m, sampler = hmc(), n_samples = 2000, #n_samples = samples to draw per chain
+  warmup = 1000, chains = 4)
+```
+
+```{r}
+draws_ex2 <- readRDS('C:/Users/BIREN/Desktop/Coxi/HW7-additional-material (1)/draws_ex2.rds')
+
+```
+
+
+
+##Wrangle, summarize and interpret (6 points)
+
+```{r}
+tidy_draws = ggmcmc::ggs(draws_ex2)
+summary(tidy_draws)
+
+
+Bayes_estimates <- tidy_draws %>% 
+  group_by(Parameter) %>%
+  summarise(
+    '|95%' = HDInterval::hdi(value)[1],
+    mean = mean(value),
+    '95|%' = HDInterval::hdi(value)[2]
+  )
+
+Bayes_estimates
+
+
+```
+
+##Point estimates under improper priors in greta
+
+```{r, eval= FALSE}
+# select data to use
+price     <- as_data(avocado_data$average_price)
+log_sold  <- as_data(log(avocado_data$total_volume_sold))
+# latent variables and priors
+intercept <- variable()
+slope     <- variable()
+sigma     <- variable(lower = 0)
+# derived latent variable (linear model)
+mean <- intercept + slope * price
+# likelihood 
+distribution(log_sold) <- normal(mean, sigma)
+# finalize model, register which parameters to monitor
+m1 <- model(intercept, slope, sigma)
+```
+
+```{r}
+opt_ex2 <- readRDS('C:/Users/BIREN/Desktop/Coxi/HW7-additional-material (1)/opt_ex2.rds')
+opt_ex2$par
+#draws2<-greta::opt(m1)
+#draws2$par
+
+
+```
+
+The values above are similiar to the values returned in ggmcmc::ggs. 
+
+
+#Exercise 2: Analyzing the King of France (22 points)
+##Get the data (6 points)
+
+```{r}
+data_KoF_raw_IDA <- 
+  read_csv(url('https://raw.githubusercontent.com/michael-franke/intro-data-analysis/master/data_sets/king-of-france_data_raw_IDA.csv'))
+
+data_KoF_preprocessed_IDA <-  data_KoF_raw_IDA %>% 
+  # discard practice trials
+  filter(trial_type != "practice") %>% 
+  mutate(
+    # add a 'condition' variable
+    condition = case_when(
+      trial_type == "special" ~ "background check",
+      trial_type == "main" ~ str_c("Condition ", item_version),
+      TRUE ~ "filler"
+    ) %>% 
+      factor( 
+        ordered = T,
+        levels = c(str_c("Condition ", c(0, 1, 6, 9, 10)), "background check", "filler")
+      )
+  )
+
+summ <- data_KoF_preprocessed_IDA %>% 
+  filter(condition %in% c("Condition 1", "Condition 0")) %>% group_by(condition) %>% filter(response %in% "TRUE") %>% count(response)
+summ
+
+
+```
+
+##Define a greta model to compare latent biases (10 points)
+
+```{r}
+c0<-data_KoF_preprocessed_IDA %>% filter(condition=="Condition 0") %>% pull(response)
+c1<-data_KoF_preprocessed_IDA %>% filter(condition=="Condition 1") %>% pull(response)
+```
+```{r, eval= FALSE}
+y0 <- as_data(c0)
+y1 <- as_data(c1)
+
+theta_0 <- beta(1,1)
+theta_1 <- beta(1,1)
+sigma   <- normal(100, 10, truncation = c(0, Inf))
+# derived prameters
+delta  <- theta_0 - theta_1
+# likelihood
+distribution(y0) <- normal(theta_0, sigma)
+distribution(y1) <- normal(theta_1, sigma)
+# model 
+m_new <- model(theta_0, theta_1, delta, sigma)
+
+```
+
+
+
+##Sample and interpret (6 points)
+
+```{r, eval=FALSE}
+draws_new <- greta::mcmc(m_new, sampler = hmc(), n_samples = 2000,warmup = 1000, chains = 4)
+```
+```{r}
+draws_ex3 <- readRDS('C:/Users/BIREN/Desktop/Coxi/HW7-additional-material (1)/draws_ex3.rds')
+```
+
+
+
+```{r}
+tidy_draws_new=ggmcmc::ggs(draws_ex3)
+summary(tidy_draws_new)
+
+
+tidy_draws_new = ggmcmc::ggs(draws_ex3)
+Bayes_estimates_new <- tidy_draws_new %>% 
+  group_by(Parameter) %>%
+  summarise(
+    '|95%' = HDInterval::hdi(value)[1],
+    mean = mean(value),
+    '95|%' = HDInterval::hdi(value)[2]
+  )
+Bayes_estimates_new
+```
+
+
+
+
+
+
+
